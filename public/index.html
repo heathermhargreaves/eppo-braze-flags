@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Braze + Eppo Integration Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .attribute-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .attribute-input input {
+            flex: 1;
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .add-attribute {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .results h3 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+
+        .results-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .result-section {
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .result-section h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .status-badge.status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-badge.status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .json-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border: 1px solid #4a5568;
+            min-height: 100px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .results-content {
+            display: none;
+        }
+
+        .results-content.show {
+            display: grid;
+        }
+
+        @media (max-width: 768px) {
+            .demo-container {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .attribute-input {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Eppo + Braze Integration Demo</h1>
+            <p>Test how feature flags control message variants in real-time</p>
+        </div>
+
+        <div class="demo-container">
+            <div class="card">
+                <h2>🎯 Test Configuration</h2>
+                <form id="demoForm">
+                    <div class="form-group">
+                        <label for="userId">User ID:</label>
+                        <input type="text" id="userId" name="userId" placeholder="demo-user-123" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="flagKey">Flag Key:</label>
+                        <input type="text" id="flagKey" name="flagKey" placeholder="braze_message_experiment" value="braze_message_experiment">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="country">Country:</label>
+                        <select id="country" name="country">
+                            <option value="US">United States</option>
+                            <option value="CA">Canada</option>
+                            <option value="UK">United Kingdom</option>
+                            <option value="AU">Australia</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subscriptionTier">Subscription Tier:</label>
+                        <select id="subscriptionTier" name="subscriptionTier">
+                            <option value="premium">Premium</option>
+                            <option value="basic">Basic</option>
+                            <option value="free">Free</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">Generate Braze Response</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>📋 How It Works</h2>
+                <div style="color: #666; line-height: 1.6;">
+                    <p><strong>1. Flag Evaluation:</strong> Eppo evaluates the feature flag for your user based on their attributes.</p>
+                    <br>
+                    <p><strong>2. Variant Assignment:</strong> User gets bucketed into control, treatment, or default.</p>
+                    <br>
+                    <p><strong>3. Braze Integration:</strong> The assigned variant determines which message the user receives.</p>
+                    <br>
+                    <p><strong>4. Webhook Response:</strong> See the complete flow with real data.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="results" id="results" style="display: none;">
+            <h3>🔄 Results</h3>
+            
+            <div class="loading" id="loading">
+                <p>🔄 Processing your request...</p>
+            </div>
+            
+            <div class="results-content" id="resultsContent">
+                <div class="result-section">
+                    <h3>🎯 Eppo Flag Assignment (Summary)</h3>
+                    <div class="status-badge" id="flagStatus">Waiting...</div>
+                    <div class="json-display" id="flagResult">Click "Generate Braze Response" to see the flag assignment</div>
+                </div>
+                <div class="result-section">
+                    <h3>🔍 Complete Eppo Assignment Data</h3>
+                    <div class="status-badge" id="fullFlagStatus">Waiting...</div>
+                    <div class="json-display" id="fullFlagResult">Complete assignment object will appear here</div>
+                </div>
+                <div class="result-section">
+                    <h3>📧 Braze Message Details</h3>
+                    <div class="status-badge" id="messageStatus">Waiting...</div>
+                    <div class="json-display" id="messageResult">Message details will appear here</div>
+                </div>
+                <div class="result-section">
+                    <h3>🔗 Webhook Response</h3>
+                    <div class="status-badge" id="webhookStatus">Waiting...</div>
+                    <div class="json-display" id="webhookResult">Simulated webhook response will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        function updateStatus(elementId, message, success = true) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status-badge ${success ? 'status-success' : 'status-error'}`;
+        }
+
+        function updateResult(elementId, data) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function showResults() {
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // Form submission handler
+        async function handleSubmit(event) {
+            event.preventDefault();
+            
+            showResults();
+            
+            // Show loading state
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultsContent').classList.remove('show');
+            
+            // Reset all status indicators
+            updateStatus('flagStatus', '🔄 Processing...', true);
+            updateStatus('fullFlagStatus', '🔄 Processing...', true);
+            updateStatus('messageStatus', '🔄 Processing...', true);
+            updateStatus('webhookStatus', '🔄 Processing...', true);
+            
+            try {
+                const formData = new FormData(event.target);
+                const userData = {
+                    userId: formData.get('userId'),
+                    flagKey: formData.get('flagKey'),
+                    userAttributes: {
+                        country: formData.get('country'),
+                        subscription_tier: formData.get('subscriptionTier')
+                    }
+                };
+
+                console.log('Sending request:', userData);
+
+                // Get flag assignment
+                const flagResponse = await fetch('/get-assignment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!flagResponse.ok) {
+                    throw new Error(`Flag assignment failed: ${flagResponse.status}`);
+                }
+
+                const flagData = await flagResponse.json();
+                
+                // Create simplified assignment summary matching Eppo's structure
+                const assignmentSummary = {
+                    flagKey: flagData.assignmentDetails?.flagKey || flagData.flagKey,
+                    allocation: flagData.assignmentDetails?.allocation || null,
+                    variation: flagData.assignmentDetails?.variation || flagData.assignment,
+                    subject: flagData.assignmentDetails?.subject || flagData.userId,
+                    experiment: flagData.assignmentDetails?.experiment || null,
+                    featureFlag: flagData.assignmentDetails?.featureFlag || null,
+                    timestamp: flagData.assignmentDetails?.timestamp || flagData.timestamp
+                };
+
+                updateStatus('flagStatus', `✅ Assigned to: ${flagData.assignment || 'null'}`, true);
+                updateResult('flagResult', assignmentSummary);
+
+                updateStatus('fullFlagStatus', '✅ Complete data captured', true);
+                updateResult('fullFlagResult', flagData);
+
+                // Send Braze message
+                const messageResponse = await fetch('/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+
+                if (!messageResponse.ok) {
+                    throw new Error(`Message sending failed: ${messageResponse.status}`);
+                }
+
+                const messageData = await messageResponse.json();
+                updateStatus('messageStatus', '✅ Message processed', true);
+                updateResult('messageResult', messageData.messagePreview);
+
+                // Display the simulated webhook response from the server
+                console.log('Webhook Response from server:', messageData.webhookResponse);
+                updateStatus('webhookStatus', '✅ Webhook response received', true);
+                updateResult('webhookResult', messageData.webhookResponse);
+
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus('flagStatus', `❌ Error: ${error.message}`, false);
+                updateStatus('fullFlagStatus', `❌ Error: ${error.message}`, false);
+                updateStatus('messageStatus', `❌ Error: ${error.message}`, false);
+                updateStatus('webhookStatus', `❌ Error: ${error.message}`, false);
+            } finally {
+                // Hide loading state
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('resultsContent').classList.add('show');
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('demoForm').addEventListener('submit', handleSubmit);
+        });
+    </script>
+</body>
+</html> 

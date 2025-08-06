@@ -1,0 +1,25 @@
+{
+  "name": "braze-eppo-flags",
+  "version": "1.0.0",
+  "description": "A Node.js server that integrates Eppo feature flags with Braze messaging to enable A/B testing of different message variants.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "@eppo/node-server-sdk": "^3.11.0",
+    "axios": "^1.6.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["eppo", "braze", "feature-flags", "a-b-testing", "messaging"],
+  "author": "",
+  "license": "MIT"
+} 
