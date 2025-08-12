@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const eppoService = require('./services/eppoService');
 const brazeService = require('./services/brazeService');
+const hightouchService = require('./services/hightouchService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -86,20 +87,16 @@ app.post('/get-assignment', async (req, res) => {
       return res.status(400).json({ error: 'userId is required' });
     }
     
-    // Set the eppo_gate attribute in Braze for this user
-    try {
-      await brazeService.updateUserAttributes({
-        userId,
-        attributes: { eppo_gate: true },
-      });
-      console.log(`✅ Successfully set eppo_gate:true for user ${userId}`);
-    } catch (brazeError) {
-      // Log the error but don't block the main flow
-      console.error(`Braze update attributes error for user ${userId}:`, brazeError.message);
-    }
+    console.log(`🔍 /get-assignment called for user ${userId} with attributes:`, userAttributes);
+    
+    // Enrich user attributes with Hightouch audience data (same as processWebhookAndSendMessage)
+    const enrichedUserAttributes = await hightouchService.getEnrichedUserAttributes(userId, userAttributes);
+    console.log(`🔍 /get-assignment enriched attributes:`, enrichedUserAttributes);
     
     const flagKey = process.env.EXPERIMENT_FLAG_KEY || 'braze_message_experiment';
-    const assignmentData = eppoService.getAssignment(flagKey, userId, userAttributes);
+    const assignmentData = eppoService.getAssignment(flagKey, userId, enrichedUserAttributes);
+    
+    console.log(`🔍 /get-assignment result: "${assignmentData.assignment}"`);
     
     const response = {
       ...assignmentData,
@@ -162,6 +159,31 @@ app.post('/send-message', async (req, res) => {
     res.status(500).json({
       error: 'Failed to process demo message',
       details: error.message
+    });
+  }
+});
+
+// Hightouch audience lookup endpoint
+app.post('/get-audiences', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const audienceData = await hightouchService.getUserAudiences(userId);
+    
+    res.json({
+      userId,
+      ...audienceData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting audiences:', error.message);
+    res.status(500).json({
+      error: 'Failed to get audiences',
+      details: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -241,21 +263,18 @@ async function processWebhookAndSendMessage(webhookData) {
     console.warn('⚠️ Could not determine userId from webhook/request body:', JSON.stringify(webhookData, null, 2));
   }
   
-  // Ensure the user exists in Braze and has the eppo_gate attribute
-  try {
-    await brazeService.updateUserAttributes({
-      userId,
-      attributes: { eppo_gate: true }
-    });
-    console.log(`✅ Ensured eppo_gate:true for webhook user ${userId}`);
-  } catch (brazeError) {
-    console.error(`Braze updateUserAttributes error for webhook user ${userId}:`, brazeError.message);
-  }
+  // Enrich user attributes with Hightouch audience data
+  const enrichedUserAttributes = await hightouchService.getEnrichedUserAttributes(userId, userAttributes);
   
-  // Get Eppo assignment for this user
+  // Get Eppo assignment for this user with enriched attributes
   const flagKey = process.env.EXPERIMENT_FLAG_KEY || 'braze_message_experiment';
-  const assignmentData = eppoService.getAssignment(flagKey, userId, userAttributes);
+  const assignmentData = eppoService.getAssignment(flagKey, userId, enrichedUserAttributes);
   const assignment = assignmentData.assignment;
+  
+  console.log(`🎯 EPPO ASSIGNMENT DEBUG for user ${userId}:`);
+  console.log(`   - Assignment: "${assignment}"`);
+  console.log(`   - Assignment type: ${typeof assignment}`);
+  console.log(`   - Enriched attributes:`, enrichedUserAttributes);
 
   // Only trigger the campaign if this is NOT a webhook call from Braze, to prevent a loop
   if (!isFromBrazeWebhook) {
@@ -272,12 +291,16 @@ async function processWebhookAndSendMessage(webhookData) {
           triggerProperties: {
             eppo_flag_key: flagKey,
             eppo_assignment: assignment,
+          },
+          userAttributes: {
+            eppo_gate: true,
+            ...enrichedUserAttributes
           }
         });
         console.log('brazeService.triggerCampaign call completed.');
         console.log('The assignment value is:', assignment);
         console.log('The type of assignment is:', typeof assignment);
-        console.log(`✅ Log that was failing: Successfully triggered campaign ${campaignId} for user ${userId} with assignment: ${assignment}`);
+        console.log(`✅ Successfully triggered campaign ${campaignId} for user ${userId} with assignment: ${assignment}`);
       } else {
         console.log('No BRAZE_WEBHOOK_CAMPAIGN_ID configured. Skipping trigger.');
       }
@@ -290,7 +313,13 @@ async function processWebhookAndSendMessage(webhookData) {
   // Determine what message would be sent (demo mode - no actual sending)
   let messagePreview;
   
+  console.log(`📧 MESSAGE GENERATION DEBUG for user ${userId}:`);
+  console.log(`   - About to check assignment: "${assignment}"`);
+  console.log(`   - assignment === 'treatment': ${assignment === 'treatment'}`);
+  console.log(`   - assignment === 'control': ${assignment === 'control'}`);
+  
   if (assignment === 'treatment') {
+    console.log(`   - ✅ Generating TREATMENT message`);
     messagePreview = {
       type: 'TREATMENT',
       subject: "🎉 Special Offer - Treatment Version!",
@@ -298,6 +327,7 @@ async function processWebhookAndSendMessage(webhookData) {
       message_variation_id: "treatment_variation"
     };
   } else if (assignment === 'control') {
+    console.log(`   - ✅ Generating CONTROL message`);
     messagePreview = {
       type: 'CONTROL', 
       subject: "📰 Your Weekly Update",
@@ -305,6 +335,7 @@ async function processWebhookAndSendMessage(webhookData) {
       message_variation_id: "control_variation"
     };
   } else {
+    console.log(`   - ✅ Generating DEFAULT message (assignment was: "${assignment}")`);
     messagePreview = {
       type: 'DEFAULT',
       subject: "👋 Hello from our integration!",
@@ -312,6 +343,9 @@ async function processWebhookAndSendMessage(webhookData) {
       message_variation_id: "default_variation"
     };
   }
+  
+  console.log(`   - Final messagePreview.type: "${messagePreview.type}"`);
+  console.log(`   - Final messagePreview.subject: "${messagePreview.subject}"`);
   
   // Return the full, structured object for internal use (e.g., by the demo UI).
   // The webhook endpoints will extract and send only the messagePreview to Braze.

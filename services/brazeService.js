@@ -123,7 +123,7 @@ class BrazeService {
   }
 
   // Trigger a campaign
-  async triggerCampaign({ userId, campaignId, triggerProperties = {} }) {
+  async triggerCampaign({ userId, campaignId, triggerProperties = {}, userAttributes = {} }) {
     if (!this.apiKey || !this.restEndpoint || !campaignId) {
       throw new Error('Braze API configuration or campaignId is missing.');
     }
@@ -134,6 +134,11 @@ class BrazeService {
         {
           external_user_id: userId,
           trigger_properties: triggerProperties,
+          attributes: {
+            email_subscribe: 'subscribed',
+            push_subscribe: 'subscribed',
+            ...userAttributes
+          }
         },
       ],
     };
